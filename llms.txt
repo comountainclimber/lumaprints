@@ -1,0 +1,35 @@
+# lumaprints
+
+> Unofficial, agent-first toolkit for the Lumaprints print-on-demand API: MCP server, JSON CLI, typed TypeScript SDK, and a local GUI. Zero runtime dependencies. Sandbox by default, and every order is previewed with prices before it can be submitted.
+
+Run `npx -y lumaprints mcp` for MCP over stdio, or `npx lumaprints <tool> --field value` for a JSON CLI. Credentials come from LUMAPRINTS_API_KEY and LUMAPRINTS_API_SECRET; LUMAPRINTS_ENV selects sandbox (default) or production. Add `--demo` to any command to use sample data without credentials. Production orders also require a human to set LUMAPRINTS_ALLOW_LIVE_ORDERS=true.
+
+## Docs
+
+- [README](https://github.com/comountainclimber/lumaprints#readme): quick start, MCP configuration, CLI, SDK, safety model
+- [AGENTS.md](https://github.com/comountainclimber/lumaprints/blob/main/AGENTS.md): order workflow for agents, error codes, repo layout
+- [Live demo](https://lumaprints.vercel.app): the console running on sample data
+- [Lumaprints API reference](https://api-docs.lumaprints.com/llms.txt): the upstream REST API
+
+## Tools
+
+- get_config: active environment, whether credentials are set, the default store, and whether orders can be submitted
+- list_stores: the account's Standard Stores
+- search_catalog: find product subcategories by keyword across all categories, e.g. "framed black"
+- list_categories: top-level product categories
+- list_subcategories: products in a category with size limits in inches and required DPI
+- list_subcategory_options: option groups for a product (paper, mat, hanging hardware, canvas wrap)
+- check_image: whether an image's aspect ratio and resolution fit a print size
+- get_product_price: unit price in USD for one product configuration
+- get_product_prices: price many product configurations in one call
+- get_shipping_quote: every shipping method and cost for a destination and set of items
+- submit_order: returns a priced preview; submits only when called again with confirm: true after the user approves
+- get_order: order status, items, recipient, and totals
+- list_orders: a store's orders, newest first
+- get_shipments: carrier, tracking number, and ship date for an order
+- subscribe_webhook: register a URL that Lumaprints calls when an order ships
+
+## Optional
+
+- [Source](https://github.com/comountainclimber/lumaprints)
+- [npm](https://www.npmjs.com/package/lumaprints)

@@ -1,0 +1,857 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lumaprints console</title>
+<meta name="description" content="Agent-first console for the Lumaprints print-on-demand API: catalog, pricing, image checks, and orders. Unofficial.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23f59f00'/%3E%3Cstop offset='.5' stop-color='%23e8590c'/%3E%3Cstop offset='1' stop-color='%23ae3ec9'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ccircle cx='16' cy='16' r='14' fill='url(%23g)'/%3E%3C/svg%3E">
+<style nonce="__CSP_NONCE__">
+:root {
+  --bg: #f6f6f3; --panel: #ffffff; --border: #e3e3de; --text: #1d1d1b; --muted: #6c6c66;
+  --accent: #1f6feb; --accent-ink: #ffffff; --soft: #efefeb;
+  --ok: #1a7f37; --ok-bg: #dcf6e3; --warn: #8a5a00; --warn-bg: #fff6cc; --err: #c4232d; --err-bg: #ffecea;
+  --sandbox: #0b7285; --sandbox-bg: #e0f7fa; --prod: #c92a2a; --prod-bg: #fff0f0;
+  --code-bg: #f2f2ee; --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --j-key: #953800; --j-str: #0a3069; --j-num: #0550ae; --j-bool: #8250df;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #121211; --panel: #1a1a18; --border: #2f2f2b; --text: #ecece8; --muted: #9b9b94; --soft: #242421;
+    --accent: #4c94f8; --ok: #44c062; --ok-bg: #13281a; --warn: #e0a72e; --warn-bg: #2b2410;
+    --err: #ff6b6b; --err-bg: #301617; --sandbox: #4dd0e1; --sandbox-bg: #0e2a2f; --prod: #ff6b6b; --prod-bg: #301617;
+    --code-bg: #212120; --j-key: #ffa657; --j-str: #a5d6ff; --j-num: #79c0ff; --j-bool: #d2a8ff;
+  }
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif; background: var(--bg); color: var(--text); }
+button { font: inherit; color: inherit; }
+code { font-family: var(--mono); font-size: 12px; }
+.app { display: grid; grid-template-columns: 252px 1fr; grid-template-rows: 52px 1fr; height: 100vh; }
+body.production .topbar { box-shadow: inset 0 3px 0 var(--prod); }
+
+.topbar { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 0 16px; background: var(--panel); border-bottom: 1px solid var(--border); }
+.brand { display: flex; align-items: center; gap: 9px; font-weight: 650; letter-spacing: -0.01em; }
+.logo { width: 18px; height: 18px; border-radius: 50%; background: conic-gradient(#e8590c, #f59f00, #37b24d, #1c7ed6, #ae3ec9, #e8590c); }
+.version, .unofficial { color: var(--muted); font-weight: 400; font-size: 12px; }
+.status { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.badge { font: 650 11px/1 var(--mono); letter-spacing: .07em; padding: 6px 9px; border-radius: 999px; text-transform: uppercase; }
+.badge.sandbox { color: var(--sandbox); background: var(--sandbox-bg); }
+.badge.production { color: #fff; background: var(--prod); }
+.badge.demo { color: #fff; background: linear-gradient(90deg, #e8590c, #ae3ec9); }
+.chip.link-chip { color: var(--accent); text-decoration: none; }
+.chip.link-chip:hover { border-color: currentColor; }
+.banner.demo { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; border: 1px solid var(--border); background: var(--panel); color: var(--text); }
+.banner.demo > span { flex: 1 1 360px; }
+.banner.demo > .btn { flex: none; }
+.banner.demo code { padding: 2px 6px; border-radius: 4px; background: var(--code-bg); white-space: nowrap; }
+.chip { font-size: 12px; color: var(--muted); padding: 3px 9px; border: 1px solid var(--border); border-radius: 999px; white-space: nowrap; }
+.chip.bad { color: var(--err); border-color: currentColor; }
+.chip.good { color: var(--ok); border-color: currentColor; }
+
+.sidebar { display: flex; flex-direction: column; gap: 2px; padding: 12px 8px 16px; overflow-y: auto; background: var(--panel); border-right: 1px solid var(--border); }
+.sidebar input { margin: 0 2px 6px; width: calc(100% - 4px); }
+.nav-group { padding: 14px 10px 5px; color: var(--muted); font: 650 11px/1 inherit; letter-spacing: .07em; text-transform: uppercase; }
+.nav-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; padding: 6px 10px; border: 0; border-radius: 6px; background: none; text-align: left; cursor: pointer; }
+.nav-item:hover { background: var(--soft); }
+.nav-item.active { background: var(--accent); color: var(--accent-ink); }
+.nav-item .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--warn); flex: none; }
+.nav-item.active .dot { background: var(--accent-ink); }
+.nav-spacer { flex: 1; min-height: 16px; }
+.nav-item.connect { border: 1px dashed var(--border); justify-content: center; padding: 8px 10px; }
+
+main { overflow-y: auto; padding: 28px 32px 80px; }
+.view { max-width: 940px; }
+.title-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+h1 { margin: 0; font-size: 22px; letter-spacing: -0.02em; }
+h2 { margin: 0 0 10px; font-size: 15px; }
+.tool-name { color: var(--muted); }
+.desc { margin: 8px 0 20px; color: var(--muted); max-width: 76ch; }
+.tag { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: var(--soft); color: var(--muted); }
+.tag.side { background: var(--warn-bg); color: var(--warn); }
+.tag.danger { background: var(--prod-bg); color: var(--prod); }
+
+.card { margin-bottom: 16px; padding: 16px; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; }
+.card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.card-head h2 { margin: 0; }
+.tabs { display: inline-flex; overflow: hidden; border: 1px solid var(--border); border-radius: 6px; }
+.tabs button { padding: 4px 11px; border: 0; background: none; font-size: 12px; cursor: pointer; color: var(--muted); }
+.tabs button.active { background: var(--soft); color: var(--text); font-weight: 600; }
+
+.fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 16px; }
+.field.wide { grid-column: 1 / -1; }
+.field label { display: flex; align-items: baseline; gap: 6px; margin-bottom: 4px; font-size: 13px; font-weight: 600; }
+.field .type { color: var(--muted); font: 400 11px var(--mono); }
+.req { color: var(--err); }
+.help { margin-top: 4px; color: var(--muted); font-size: 12px; }
+input, select, textarea { width: 100%; padding: 7px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text); font: inherit; }
+textarea { min-height: 128px; resize: vertical; font: 12.5px/1.5 var(--mono); }
+textarea.all { min-height: 300px; }
+textarea.lines { min-height: 64px; }
+input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: transparent; }
+.no-fields { color: var(--muted); }
+
+.actions { display: flex; align-items: center; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+.btn { padding: 8px 14px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel); font-weight: 600; font-size: 13px; cursor: pointer; }
+.btn:hover { background: var(--soft); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.danger { background: var(--prod); border-color: var(--prod); color: #fff; }
+.btn.small { padding: 4px 10px; font-size: 12px; font-weight: 500; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.hint { color: var(--muted); font-size: 12px; }
+
+details.agent summary { cursor: pointer; color: var(--muted); font-size: 13px; user-select: none; }
+details.agent[open] summary { margin-bottom: 10px; }
+.snippet { position: relative; margin-bottom: 10px; }
+.snippet .label { margin-bottom: 4px; color: var(--muted); font-size: 12px; }
+.snippet .copy { position: absolute; top: 24px; right: 6px; }
+pre { margin: 0; padding: 12px; overflow: auto; max-height: 520px; background: var(--code-bg); border-radius: 6px; font: 12px/1.55 var(--mono); white-space: pre; }
+pre.wrap { white-space: pre-wrap; }
+
+.result-meta { display: flex; align-items: center; gap: 10px; }
+.pill { padding: 2px 8px; border-radius: 999px; font: 600 11px/1.6 var(--mono); }
+.pill.ok { background: var(--ok-bg); color: var(--ok); }
+.pill.err { background: var(--err-bg); color: var(--err); }
+.summary { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-bottom: 12px; }
+.summary div { font-size: 13px; }
+.summary span { color: var(--muted); }
+.table-wrap { overflow: auto; max-height: 560px; border: 1px solid var(--border); border-radius: 8px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { position: sticky; top: 0; padding: 7px 10px; background: var(--panel); border-bottom: 1px solid var(--border); color: var(--muted); font-size: 12px; font-weight: 600; text-align: left; white-space: nowrap; }
+td { padding: 7px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+td.prose { min-width: 22ch; }
+.link { padding: 0; border: 0; background: none; color: var(--accent); cursor: pointer; text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 3px; }
+.opt { display: inline-block; margin: 1px 4px 2px 0; padding: 1px 6px; border: 1px solid var(--border); border-radius: 4px; font-size: 12px; white-space: nowrap; }
+.opt code { color: var(--muted); }
+.muted { color: var(--muted); }
+.related { display: flex; gap: 8px; margin-top: 12px; }
+.spaced { margin-top: 18px; }
+
+.banner { margin-bottom: 14px; padding: 10px 12px; border-radius: 8px; font-size: 13px; }
+.banner.sandbox { background: var(--sandbox-bg); color: var(--sandbox); }
+.banner.production { background: var(--prod-bg); color: var(--prod); font-weight: 600; }
+.banner.warn { background: var(--warn-bg); color: var(--warn); }
+.banner.err { background: var(--err-bg); color: var(--err); }
+.banner.ok { background: var(--ok-bg); color: var(--ok); }
+.banner ul { margin: 4px 0 0; padding-left: 18px; }
+.error-code { font: 650 12px var(--mono); }
+.ship-options { display: grid; gap: 6px; margin: 8px 0 14px; }
+.ship-option { display: flex; justify-content: space-between; gap: 12px; padding: 7px 10px; border: 1px solid var(--border); border-radius: 6px; background: none; cursor: pointer; text-align: left; }
+.ship-option.selected { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.totals { display: grid; grid-template-columns: 1fr auto; gap: 4px 28px; max-width: 340px; margin: 14px 0 0 auto; font-variant-numeric: tabular-nums; }
+.totals .grand { padding-top: 6px; border-top: 1px solid var(--border); font-weight: 700; }
+.image-check { display: flex; gap: 18px; align-items: flex-start; flex-wrap: wrap; }
+.thumb { max-width: 220px; max-height: 220px; border: 1px solid var(--border); border-radius: 6px; background: var(--code-bg); }
+.big-number { font: 700 24px/1.2 var(--mono); }
+.spinner { width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.j-key { color: var(--j-key); } .j-str { color: var(--j-str); } .j-num { color: var(--j-num); } .j-bool { color: var(--j-bool); } .j-null { color: var(--muted); }
+.env-table td:first-child { white-space: nowrap; }
+@media (max-width: 760px) {
+  .app { grid-template-columns: 1fr; grid-template-rows: auto auto 1fr; }
+  .sidebar { border-right: 0; border-bottom: 1px solid var(--border); max-height: 220px; }
+  .fields { grid-template-columns: 1fr; }
+  main { padding: 20px 16px 60px; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand"><span class="logo"></span>lumaprints <span class="version" id="version"></span><span class="unofficial">unofficial</span></div>
+    <div class="status" id="status"></div>
+  </header>
+  <aside class="sidebar">
+    <input id="filter" type="search" placeholder="Filter tools" autocomplete="off">
+    <nav id="nav"></nav>
+    <div class="nav-spacer"></div>
+    <button class="nav-item connect" id="connect">Connect an agent</button>
+  </aside>
+  <main id="main"><div class="view"><p class="muted">Loading...</p></div></main>
+</div>
+<script nonce="__CSP_NONCE__">
+"use strict";
+
+const GROUPS = [["setup", "Setup"], ["catalog", "Catalog"], ["pricing", "Pricing"], ["orders", "Orders"], ["webhooks", "Webhooks"]];
+const LINKS = {
+  categoryId: ["list_subcategories", "categoryId"],
+  subcategoryId: ["list_subcategory_options", "subcategoryId"],
+  orderNumber: ["get_order", "orderNumber"],
+};
+const MAX_COLUMNS = 9;
+const LOW_PRIORITY_COLUMNS = ["email", "storeId", "productionTime", "discountTotal", "taxTotal", "subTotal", "shippingTotal", "orderItems"];
+const RELATED = {
+  get_order: (r) => [["get_shipments", { orderNumber: r.orderNumber }, "Shipments", true]],
+  list_subcategory_options: (r) => [
+    ["get_product_price", { subcategoryId: r.subcategoryId }, "Price this product", false],
+    ["check_image", { subcategoryId: r.subcategoryId }, "Check an image", false],
+  ],
+};
+
+const state = { meta: null, tools: [], current: null, mode: "form", drafts: {}, results: {}, views: {}, autorun: null, busy: false };
+
+// ---------------------------------------------------------------- helpers
+
+function h(tag, props, ...children) {
+  const el = document.createElement(tag);
+  for (const [key, value] of Object.entries(props || {})) {
+    if (value === null || value === undefined || value === false) continue;
+    if (key === "class") el.className = value;
+    else if (key === "value") el.value = value;
+    else if (key.startsWith("on")) el.addEventListener(key.slice(2), value);
+    else if (key === "dataset") Object.assign(el.dataset, value);
+    else el.setAttribute(key, value === true ? "" : String(value));
+  }
+  for (const child of children.flat(Infinity)) {
+    if (child === null || child === undefined || child === false) continue;
+    el.append(child instanceof Node ? child : document.createTextNode(String(child)));
+  }
+  return el;
+}
+
+const types = (schema) => (schema?.type === undefined ? [] : Array.isArray(schema.type) ? schema.type : [schema.type]);
+const kebab = (s) => s.replace(/_/g, "-").replace(/[A-Z]/g, (c) => "-" + c.toLowerCase());
+const money = (n) => (typeof n === "number" ? "$" + n.toFixed(2) : "—");
+const truncate = (s, n) => (s.length > n ? s.slice(0, n - 1) + "…" : s);
+const toolByName = (name) => state.tools.find((t) => t.name === name);
+const isProduction = () => state.meta?.config.environment === "production" && !state.meta.demo;
+const isDemo = () => Boolean(state.meta?.demo);
+const REPO_URL = "https://github.com/comountainclimber/lumaprints";
+
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+function highlightJson(value) {
+  const json = escapeHtml(JSON.stringify(value, null, 2) ?? "null");
+  return json.replace(/(&quot;(?:\\.|[^&\\]|&(?!quot;))*?&quot;)(\s*:)?|\b(true|false)\b|\bnull\b|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/g, (match, str, colon, bool) => {
+    if (str) return colon ? `<span class="j-key">${str}</span>${colon}` : `<span class="j-str">${str}</span>`;
+    if (bool) return `<span class="j-bool">${match}</span>`;
+    if (match === "null") return `<span class="j-null">null</span>`;
+    return `<span class="j-num">${match}</span>`;
+  });
+}
+
+function jsonBlock(value) {
+  const pre = h("pre");
+  pre.innerHTML = highlightJson(value);
+  return pre;
+}
+
+function copyButton(getText) {
+  const btn = h("button", { class: "btn small copy", type: "button" }, "Copy");
+  btn.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(getText());
+      btn.textContent = "Copied";
+    } catch {
+      btn.textContent = "Copy failed";
+    }
+    setTimeout(() => (btn.textContent = "Copy"), 1200);
+  });
+  return btn;
+}
+
+function shellQuote(s) {
+  return /^[A-Za-z0-9_\-.,:/@=+]+$/.test(s) ? s : `'${s.replace(/'/g, `'\\''`)}'`;
+}
+
+function exampleValue(schema) {
+  if (schema.examples?.length) return schema.examples[0];
+  const t = types(schema)[0];
+  if (t === "object") {
+    const obj = {};
+    for (const key of schema.required || []) obj[key] = exampleValue(schema.properties[key]);
+    return obj;
+  }
+  if (t === "array") return schema.items ? [exampleValue(schema.items)] : [];
+  if (t === "integer" || t === "number") return 0;
+  if (t === "boolean") return false;
+  return "";
+}
+
+// ---------------------------------------------------------------- shell
+
+async function init() {
+  const res = await fetch("/api/meta");
+  state.meta = await res.json();
+  state.tools = state.meta.tools;
+  document.getElementById("version").textContent = "v" + state.meta.version;
+  document.body.classList.toggle("production", isProduction());
+  if (isDemo()) {
+    document.title = "Lumaprints console (demo)";
+    if (!location.hash) {
+      state.drafts.search_catalog = { query: "black frame" };
+      state.autorun = "search_catalog";
+      history.replaceState(null, "", "#tool=search_catalog");
+    }
+  }
+  renderStatus();
+  renderNav();
+  document.getElementById("filter").addEventListener("input", renderNav);
+  document.getElementById("connect").addEventListener("click", () => (location.hash = "connect"));
+  window.addEventListener("hashchange", route);
+  document.addEventListener("keydown", (event) => {
+    if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+      const button = document.querySelector("[data-run]");
+      if (button && !button.disabled) {
+        event.preventDefault();
+        button.click();
+      }
+    }
+  });
+  route();
+}
+
+function renderStatus() {
+  const { config } = state.meta;
+  const status = document.getElementById("status");
+  if (isDemo()) {
+    status.replaceChildren(
+      h("span", { class: "badge demo", title: "Sample data. Nothing reaches Lumaprints." }, "demo"),
+      h("span", { class: "chip" }, "sample data"),
+      h("a", { class: "chip link-chip", href: REPO_URL, target: "_blank", rel: "noopener" }, "GitHub"),
+      h("a", { class: "chip link-chip", href: "https://www.npmjs.com/package/lumaprints", target: "_blank", rel: "noopener" }, "npm"),
+    );
+    return;
+  }
+  status.replaceChildren(
+    h("span", { class: `badge ${config.environment}` }, config.environment),
+    config.credentialsConfigured
+      ? h("span", { class: "chip good" }, "credentials set")
+      : h("span", { class: "chip bad", title: "Set LUMAPRINTS_API_KEY and LUMAPRINTS_API_SECRET, then restart" }, "no credentials"),
+    h("span", { class: "chip" }, config.defaultStoreId ? `store ${config.defaultStoreId}` : "store: auto"),
+    config.environment === "production"
+      ? h("span", { class: config.allowLiveOrders ? "chip bad" : "chip" }, config.allowLiveOrders ? "live orders ON" : "live orders off")
+      : null,
+  );
+}
+
+function renderNav() {
+  const query = document.getElementById("filter").value.trim().toLowerCase();
+  const nav = document.getElementById("nav");
+  nav.replaceChildren(
+    ...GROUPS.flatMap(([category, label]) => {
+      const items = state.tools.filter((t) => t.category === category && (!query || `${t.name} ${t.title} ${t.description}`.toLowerCase().includes(query)));
+      if (!items.length) return [];
+      return [
+        h("div", { class: "nav-group" }, label),
+        ...items.map((tool) =>
+          h("button", {
+            class: "nav-item" + (state.current === tool.name ? " active" : ""),
+            title: tool.annotations.readOnlyHint ? tool.name : `${tool.name} (has side effects)`,
+            onclick: () => openTool(tool.name),
+          }, tool.title, tool.annotations.readOnlyHint ? null : h("span", { class: "dot" })),
+        ),
+      ];
+    }),
+  );
+  document.getElementById("connect").classList.toggle("active", state.current === "connect");
+}
+
+function route() {
+  if (state.current && state.current !== "connect") saveDraft();
+  const hash = location.hash.slice(1);
+  if (hash === "connect") {
+    state.current = "connect";
+    renderNav();
+    renderConnect();
+    return;
+  }
+  const name = new URLSearchParams(hash).get("tool");
+  const tool = toolByName(name) || toolByName("get_config");
+  state.current = tool.name;
+  state.mode = "form";
+  renderNav();
+  renderTool(tool);
+  if (state.autorun === tool.name) {
+    state.autorun = null;
+    run(tool);
+  }
+}
+
+function openTool(name, prefill, autorun) {
+  if (state.current && state.current !== "connect") saveDraft();
+  if (prefill) state.drafts[name] = { ...(state.drafts[name] || initialDraft(toolByName(name))), ...prefill };
+  if (autorun) state.autorun = name;
+  const target = "tool=" + name;
+  if (location.hash.slice(1) === target) route();
+  else location.hash = target;
+}
+
+// ---------------------------------------------------------------- tool view
+
+function hasConfirm(tool) {
+  return Boolean(tool.inputSchema.properties?.confirm);
+}
+
+function initialDraft(tool) {
+  const draft = {};
+  const props = tool.inputSchema.properties || {};
+  for (const key of tool.inputSchema.required || []) {
+    const t = types(props[key]);
+    if (t.includes("object") || (t.includes("array") && types(props[key].items).includes("object"))) {
+      draft[key] = exampleValue(props[key]);
+    }
+  }
+  if (props.externalId) {
+    draft.externalId = "test-" + new Date().toISOString().replace(/\D/g, "").slice(0, 14);
+  }
+  return draft;
+}
+
+function fieldKind(schema) {
+  const t = types(schema);
+  if (schema.enum) return "enum";
+  if (t.includes("boolean")) return "bool";
+  if (t.includes("object") || (t.includes("array") && types(schema.items).includes("object"))) return "json";
+  if (t.includes("array")) return types(schema.items).includes("string") ? "lines" : "numlist";
+  if (t.includes("integer") && t.includes("string")) return "id";
+  if (t.includes("integer") || t.includes("number")) return "number";
+  return "text";
+}
+
+function formatForField(kind, value) {
+  if (value === undefined || value === null) return "";
+  switch (kind) {
+    case "json": return JSON.stringify(value, null, 2);
+    case "numlist": return Array.isArray(value) ? value.join(", ") : String(value);
+    case "lines": return Array.isArray(value) ? value.join("\n") : String(value);
+    default: return String(value);
+  }
+}
+
+function renderField(key, schema, required, value) {
+  const kind = fieldKind(schema);
+  const data = { key, kind };
+  const id = "f-" + key;
+  const text = formatForField(kind, value);
+  let control;
+  if (kind === "enum" || kind === "bool") {
+    const choices = kind === "bool" ? ["true", "false"] : schema.enum.map(String);
+    control = h("select", { id, dataset: data },
+      h("option", { value: "" }, required ? "Choose..." : "(omit)"),
+      ...choices.map((choice) => h("option", { value: choice, selected: text === choice }, choice)));
+  } else if (kind === "json" || kind === "lines") {
+    control = h("textarea", { id, dataset: data, class: kind === "lines" ? "lines" : null, spellcheck: "false", placeholder: kind === "lines" ? "One per line" : "JSON", value: text });
+  } else {
+    control = h("input", {
+      id, dataset: data, value: text, autocomplete: "off", spellcheck: "false",
+      type: kind === "number" ? "number" : "text",
+      step: kind === "number" ? "any" : null,
+      placeholder: kind === "numlist" ? "e.g. 64, 76, 83" : schema.examples?.length ? String(schema.examples[0]) : null,
+    });
+  }
+  const typeLabel = kind === "json" ? "JSON" : kind === "numlist" ? "ids, comma-separated" : types(schema).join(" | ");
+  return h("div", { class: "field" + (kind === "json" || kind === "lines" ? " wide" : "") },
+    h("label", { for: id }, key, required ? h("span", { class: "req" }, "*") : null, h("span", { class: "type" }, typeLabel)),
+    control,
+    schema.description ? h("div", { class: "help" }, schema.description) : null);
+}
+
+function renderTool(tool) {
+  const draft = state.drafts[tool.name] || initialDraft(tool);
+  const props = Object.entries(tool.inputSchema.properties || {}).filter(([key]) => key !== "confirm");
+  const required = new Set(tool.inputSchema.required || []);
+  const needsApi = tool.name !== "get_config";
+
+  const tags = [];
+  if (tool.annotations.readOnlyHint) tags.push(h("span", { class: "tag" }, "read-only"));
+  else if (isDemo()) tags.push(h("span", { class: "tag side" }, hasConfirm(tool) ? "preview only in the demo" : "disabled in the demo"));
+  else if (tool.annotations.destructiveHint) tags.push(h("span", { class: "tag danger" }, isProduction() ? "places real, paid orders" : "places sandbox orders"));
+  else tags.push(h("span", { class: "tag side" }, "has side effects"));
+
+  const formBody = h("div", { id: "form-body" });
+  const snippets = h("div", { id: "snippets" });
+  const resultSlot = h("div", { id: "result" });
+
+  const view = h("div", { class: "view" },
+    demoBanner(),
+    h("div", { class: "title-row" }, h("h1", {}, tool.title), h("code", { class: "tool-name" }, tool.name), ...tags),
+    h("p", { class: "desc" }, tool.description),
+    needsApi && !isDemo() && !state.meta.config.credentialsConfigured
+      ? h("div", { class: "banner err" }, "No credentials configured. Set LUMAPRINTS_API_KEY and LUMAPRINTS_API_SECRET in your environment or a .env file, then restart lumaprints ui.")
+      : null,
+    h("div", { class: "card" },
+      h("div", { class: "card-head" },
+        h("h2", {}, "Input"),
+        props.length ? h("div", { class: "tabs" },
+          h("button", { type: "button", class: state.mode === "form" ? "active" : "", onclick: () => switchMode(tool, "form") }, "Form"),
+          h("button", { type: "button", class: state.mode === "json" ? "active" : "", onclick: () => switchMode(tool, "json") }, "JSON")) : null),
+      formBody,
+      h("div", { class: "actions" }, ...actionButtons(tool), h("span", { class: "hint" }, "⌘/Ctrl + Enter"))),
+    h("div", { class: "card" },
+      h("details", { class: "agent", open: true },
+        h("summary", {}, "Agent equivalent: the same call from the CLI or over MCP"),
+        snippets)),
+    resultSlot);
+
+  document.getElementById("main").replaceChildren(view);
+  renderFormBody(tool, draft, props, required);
+  formBody.addEventListener("input", () => updateSnippets(tool));
+  formBody.addEventListener("change", () => updateSnippets(tool));
+  updateSnippets(tool);
+  const previous = state.results[tool.name];
+  if (previous) renderResult(tool, previous);
+}
+
+function actionButtons(tool) {
+  if (!hasConfirm(tool)) {
+    return [h("button", { class: "btn primary", type: "button", dataset: { run: "1" }, onclick: () => run(tool) }, "Run")];
+  }
+  return [
+    h("button", { class: "btn primary", type: "button", dataset: { run: "1" }, onclick: () => run(tool) }, "Preview"),
+    submitButton(tool, () => run(tool, { confirm: true })),
+  ];
+}
+
+function demoBanner() {
+  if (!isDemo()) return null;
+  const command = "npx lumaprints ui";
+  return h("div", { class: "banner demo" },
+    h("span", {}, h("strong", {}, "Demo with sample data. "), "Catalog, prices, and orders are illustrative, and nothing reaches Lumaprints. Run it on your own account with ", h("code", {}, command), "."),
+    copyButton(() => command));
+}
+
+function submitButton(tool, onclick) {
+  if (isDemo()) {
+    return h("button", { class: "btn", type: "button", disabled: true, title: "Submitting is disabled in the demo. Run npx lumaprints ui with sandbox keys to place test orders." }, "Submit (disabled in demo)");
+  }
+  const blocked = isProduction() && !state.meta.config.allowLiveOrders;
+  return h("button", {
+    class: isProduction() ? "btn danger" : "btn",
+    type: "button",
+    disabled: blocked,
+    title: blocked ? "Set LUMAPRINTS_ALLOW_LIVE_ORDERS=true to allow production orders" : null,
+    onclick,
+  }, isProduction() ? "Submit real order…" : "Submit sandbox order");
+}
+
+function renderFormBody(tool, draft, props, required) {
+  const body = document.getElementById("form-body");
+  if (state.mode === "json") {
+    body.replaceChildren(h("textarea", { id: "json-input", class: "all", spellcheck: "false", value: JSON.stringify(draft, null, 2) }));
+    return;
+  }
+  if (!props.length) {
+    body.replaceChildren(h("p", { class: "no-fields" }, "This tool takes no input."));
+    return;
+  }
+  const ordered = [...props].sort(([a], [b]) => Number(required.has(b)) - Number(required.has(a)));
+  body.replaceChildren(h("div", { class: "fields" }, ...ordered.map(([key, schema]) => renderField(key, schema, required.has(key), draft[key]))));
+}
+
+function switchMode(tool, mode) {
+  if (state.mode === mode) return;
+  const { input, error } = collectInput();
+  if (error) {
+    renderResult(tool, { body: { ok: false, error: { code: "INVALID_INPUT", message: error } }, input: {} });
+    return;
+  }
+  state.drafts[tool.name] = input;
+  state.mode = mode;
+  renderTool(tool);
+}
+
+function collectInput() {
+  if (state.mode === "json") {
+    const raw = document.getElementById("json-input")?.value.trim() || "";
+    if (!raw) return { input: {} };
+    try {
+      const value = JSON.parse(raw);
+      if (!value || typeof value !== "object" || Array.isArray(value)) return { error: "Input must be a JSON object" };
+      return { input: value };
+    } catch (error) {
+      return { error: "Input is not valid JSON: " + error.message };
+    }
+  }
+  const input = {};
+  const errors = [];
+  for (const el of document.querySelectorAll("#form-body [data-key]")) {
+    const { key, kind } = el.dataset;
+    const raw = el.value.trim();
+    if (!raw) continue;
+    switch (kind) {
+      case "number": input[key] = Number(raw); break;
+      case "id": input[key] = /^\d+$/.test(raw) ? Number(raw) : raw; break;
+      case "bool": input[key] = raw === "true"; break;
+      case "numlist": input[key] = raw.split(",").map((s) => s.trim()).filter(Boolean).map((s) => (/^-?\d+$/.test(s) ? Number(s) : s)); break;
+      case "lines": input[key] = raw.split("\n").map((s) => s.trim()).filter(Boolean); break;
+      case "json":
+        try { input[key] = JSON.parse(raw); } catch (error) { errors.push(`${key} (${error.message})`); }
+        break;
+      default: input[key] = raw;
+    }
+  }
+  return errors.length ? { error: "Invalid JSON in " + errors.join(", "), input } : { input };
+}
+
+function saveDraft() {
+  if (!document.getElementById("form-body")) return;
+  const { input, error } = collectInput();
+  if (!error && state.current) state.drafts[state.current] = input;
+}
+
+function updateSnippets(tool, override) {
+  const slot = document.getElementById("snippets");
+  if (!slot) return;
+  const input = override || collectInput().input || {};
+  const cmd = "npx lumaprints " + kebab(tool.name) + (isDemo() ? " --demo" : "");
+  const entries = Object.entries(input);
+  const simple = entries.every(([, v]) => ["string", "number", "boolean"].includes(typeof v));
+  const cli = !entries.length ? cmd
+    : simple ? cmd + " " + entries.map(([k, v]) => `--${kebab(k)} ${shellQuote(String(v))}`).join(" ")
+    : cmd + " --input " + shellQuote(JSON.stringify(input));
+  const mcp = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: tool.name, arguments: input } }, null, 2);
+  slot.replaceChildren(
+    h("div", { class: "snippet" }, h("div", { class: "label" }, "CLI"), h("pre", { class: "wrap" }, cli), copyButton(() => cli)),
+    h("div", { class: "snippet" }, h("div", { class: "label" }, "MCP tools/call"), jsonBlock(JSON.parse(mcp)), copyButton(() => mcp)),
+  );
+}
+
+// ---------------------------------------------------------------- running
+
+async function run(tool, extra) {
+  if (state.busy) return;
+  const collected = collectInput();
+  if (collected.error) {
+    renderResult(tool, { body: { ok: false, error: { code: "INVALID_INPUT", message: collected.error } }, input: {} });
+    return;
+  }
+  const input = { ...collected.input, ...(extra || {}) };
+  if (extra?.confirm && isProduction()) {
+    const ok = window.confirm("This places a REAL production order.\n\nIt will be printed, shipped, and charged to the store's card immediately, and it cannot be edited or canceled through the API.\n\nSubmit it?");
+    if (!ok) return;
+  }
+  state.drafts[tool.name] = collected.input;
+  updateSnippets(tool, input);
+
+  state.busy = true;
+  const slot = document.getElementById("result");
+  slot.replaceChildren(h("div", { class: "card" }, h("div", { class: "result-meta" }, h("div", { class: "spinner" }), h("span", { class: "muted" }, "Running " + tool.name + "..."))));
+  let entry;
+  try {
+    const res = await fetch("/api/tools/" + tool.name, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) });
+    entry = { body: await res.json(), status: res.status, input };
+  } catch (error) {
+    entry = { body: { ok: false, error: { code: "NETWORK_ERROR", message: "Could not reach the lumaprints ui server: " + error.message } }, input };
+  } finally {
+    state.busy = false;
+  }
+  state.results[tool.name] = entry;
+  if (state.current === tool.name) renderResult(tool, entry);
+}
+
+// ---------------------------------------------------------------- results
+
+function renderResult(tool, entry) {
+  const slot = document.getElementById("result");
+  if (!slot) return;
+  const { body } = entry;
+  const viewKey = tool.name;
+  const showJson = state.views[viewKey] === "json";
+  const rich = body.ok ? richResult(tool, body.result, entry.input) : null;
+
+  const head = h("div", { class: "card-head" },
+    h("div", { class: "result-meta" },
+      h("h2", {}, "Result"),
+      body.ok ? h("span", { class: "pill ok" }, "ok") : h("span", { class: "pill err" }, body.error?.code || "error"),
+      body.durationMs !== undefined ? h("span", { class: "hint" }, body.durationMs + " ms") : null),
+    h("div", { class: "result-meta" },
+      rich ? h("div", { class: "tabs" },
+        h("button", { type: "button", class: showJson ? "" : "active", onclick: () => { state.views[viewKey] = "view"; renderResult(tool, entry); } }, "View"),
+        h("button", { type: "button", class: showJson ? "active" : "", onclick: () => { state.views[viewKey] = "json"; renderResult(tool, entry); } }, "JSON")) : null,
+      copyButton(() => JSON.stringify(body.ok ? body.result : body.error, null, 2))));
+
+  let content;
+  if (!body.ok) {
+    content = h("div", {},
+      h("div", { class: "banner err" }, h("div", { class: "error-code" }, body.error?.code), body.error?.message),
+      body.error?.details !== undefined ? jsonBlock(body.error.details) : null);
+  } else {
+    content = rich && !showJson ? rich : jsonBlock(body.result);
+  }
+  slot.replaceChildren(h("div", { class: "card" }, head, content));
+}
+
+function richResult(tool, result, input) {
+  if (!result || typeof result !== "object") return null;
+  if (tool.name === "submit_order") return result.submitted ? submittedView(result) : previewView(tool, result, input);
+  if (tool.name === "check_image") return imageView(result);
+  return genericView(tool, result);
+}
+
+function genericView(tool, result) {
+  const entries = Object.entries(result);
+  const tableEntry = entries.find(([, v]) => Array.isArray(v) && v.length && v[0] && typeof v[0] === "object");
+  const scalars = entries.filter(([, v]) => !Array.isArray(v));
+  const lists = entries.filter(([k, v]) => Array.isArray(v) && (!tableEntry || k !== tableEntry[0]) && v.every((x) => typeof x !== "object"));
+  const emptyArrays = entries.filter(([, v]) => Array.isArray(v) && v.length === 0);
+  if (!tableEntry && !scalars.length && !lists.length) return null;
+
+  const related = RELATED[tool.name]?.(result) || [];
+  return h("div", {},
+    scalars.length ? h("div", { class: "summary" }, ...scalars.map(([k, v]) => h("div", {}, h("span", {}, k + ": "), cell(tool.name, k, v)))) : null,
+    ...lists.filter(([, v]) => v.length).map(([k, v]) => h("div", { class: "banner " + (k === "warnings" ? "warn" : "sandbox") }, h("strong", {}, k), h("ul", {}, ...v.map((x) => h("li", {}, String(x)))))),
+    tableEntry ? table(tool.name, tableEntry[1]) : null,
+    !tableEntry && emptyArrays.length ? h("p", { class: "muted" }, emptyArrays.map(([k]) => `No ${k}.`).join(" ")) : null,
+    related.length ? h("div", { class: "related" }, ...related.map(([name, prefill, label, auto]) => h("button", { class: "btn small", type: "button", onclick: () => openTool(name, prefill, auto) }, label + " →"))) : null);
+}
+
+function table(toolName, rows) {
+  let columns = [];
+  for (const row of rows.slice(0, 50)) for (const key of Object.keys(row)) if (!columns.includes(key)) columns.push(key);
+  for (const key of LOW_PRIORITY_COLUMNS) {
+    if (columns.length <= MAX_COLUMNS) break;
+    columns = columns.filter((c) => c !== key);
+  }
+  const shown = columns.slice(0, MAX_COLUMNS);
+  const numeric = (key) => rows.every((r) => r[key] === null || r[key] === undefined || typeof r[key] === "number") && !LINKS[key] && key !== "id";
+  const prose = (key) => rows.some((r) => typeof r[key] === "string" && r[key].length > 14);
+  const cellClass = (key) => (numeric(key) ? "num" : prose(key) ? "prose" : null);
+  return h("div", { class: "table-wrap" },
+    h("table", {},
+      h("thead", {}, h("tr", {}, ...shown.map((key) => h("th", { class: numeric(key) ? "num" : null }, key)))),
+      h("tbody", {}, ...rows.map((row) => h("tr", {}, ...shown.map((key) => h("td", { class: cellClass(key) }, cell(toolName, key, row[key]))))))));
+}
+
+function cell(toolName, key, value) {
+  const linkKey = toolName === "list_categories" && key === "id" ? "categoryId" : key;
+  const link = LINKS[linkKey];
+  if (link && (typeof value === "number" || typeof value === "string") && !(toolName === link[0])) {
+    return h("button", { class: "link", type: "button", title: "Open " + link[0], onclick: () => openTool(link[0], { [link[1]]: value }, true) }, String(value));
+  }
+  if (Array.isArray(value)) {
+    if (value.length && value[0] && typeof value[0] === "object") {
+      const keys = Object.keys(value[0]);
+      const idKey = keys.find((k) => /Id$/.test(k));
+      const nameKey = keys.find((k) => idKey && k === idKey.replace(/Id$/, "Name")) || keys.find((k) => /Name$/.test(k) || k === "product");
+      if (idKey && nameKey) return h("div", {}, ...value.map((v) => h("span", { class: "opt" }, h("code", {}, String(v[idKey])), " ", String(v[nameKey]))));
+      return h("code", { class: "muted" }, value.length + " items");
+    }
+    return value.join(", ");
+  }
+  if (value && typeof value === "object") {
+    if ("firstName" in value) return [value.firstName, value.lastName].filter(Boolean).join(" ") + (value.city ? `, ${value.city} ${value.state || ""}` : "");
+    if ("imageUrl" in value) return h("code", {}, truncate(String(value.imageUrl), 60));
+    if ("width" in value && "height" in value) return `${value.width} × ${value.height}`;
+    if ("method" in value && "cost" in value) return `${value.method} ${money(value.cost)}`;
+    return h("code", {}, truncate(JSON.stringify(value), 80));
+  }
+  if (typeof value === "number" && /(^price|^cost|Price|Cost|Total|Subtotal)$/.test(key)) return money(value);
+  if (value === null || value === undefined) return h("span", { class: "muted" }, "—");
+  return String(value);
+}
+
+function previewView(tool, result, input) {
+  const { estimate } = result;
+  const production = result.environment === "production";
+  const selectedMethod = estimate.shipping?.method;
+  return h("div", {},
+    h("div", { class: "banner " + (production ? "production" : "sandbox") }, result.nextStep),
+    result.warnings?.length ? h("div", { class: "banner warn" }, h("strong", {}, "Check before submitting"), h("ul", {}, ...result.warnings.map((w) => h("li", {}, w)))) : null,
+    h("div", { class: "table-wrap" },
+      h("table", {},
+        h("thead", {}, h("tr", {}, h("th", {}, "item"), h("th", {}, "product"), h("th", {}, "size (in)"), h("th", { class: "num" }, "qty"), h("th", { class: "num" }, "unit"), h("th", { class: "num" }, "line total"))),
+        h("tbody", {}, ...estimate.items.map((item) => h("tr", {},
+          h("td", {}, item.externalItemId),
+          h("td", {}, cell("submit_order", "subcategoryId", item.subcategoryId), item.options?.length ? h("div", {}, ...item.options.map((o) => h("span", { class: "opt" }, h("code", {}, String(o.optionId)), " ", o.optionName))) : null),
+          h("td", {}, item.size),
+          h("td", { class: "num" }, item.quantity),
+          h("td", { class: "num" }, money(item.unitPrice)),
+          h("td", { class: "num" }, money(item.lineTotal))))))),
+    estimate.shippingOptions.length ? h("div", {},
+      h("h2", { class: "spaced" }, "Shipping"),
+      h("div", { class: "ship-options" }, ...estimate.shippingOptions.map((option) => h("button", {
+        class: "ship-option" + (option.method === selectedMethod ? " selected" : ""),
+        type: "button",
+        title: "Preview with this shipping method",
+        onclick: () => {
+          state.drafts[tool.name] = { ...input, shippingMethod: option.method };
+          delete state.drafts[tool.name].confirm;
+          renderTool(tool);
+          run(tool);
+        },
+      }, h("span", {}, h("code", {}, option.method), " ", h("span", { class: "muted" }, option.carrier)), h("strong", {}, money(option.cost)))))) : null,
+    h("div", { class: "totals" },
+      h("span", {}, "Products"), h("span", {}, money(estimate.productSubtotal)),
+      h("span", {}, "Shipping" + (selectedMethod ? ` (${selectedMethod})` : "")), h("span", {}, money(estimate.shipping?.cost)),
+      h("span", { class: "grand" }, "Estimated total before tax"), h("span", { class: "grand" }, money(estimate.estimatedTotalBeforeTax))),
+    h("div", { class: "actions" }, submitButton(tool, () => run(tool, { confirm: true }))));
+}
+
+function submittedView(result) {
+  return h("div", {},
+    h("div", { class: "banner ok" }, result.message || "Order submitted."),
+    h("div", { class: "summary" },
+      h("div", {}, h("span", {}, "order number "), h("div", { class: "big-number" }, String(result.orderNumber))),
+      h("div", {}, h("span", {}, "externalId: "), result.externalId),
+      h("div", {}, h("span", {}, "store: "), String(result.storeId)),
+      h("div", {}, h("span", {}, "environment: "), result.environment)),
+    h("p", { class: "muted" }, result.nextSteps),
+    h("div", { class: "related" }, h("button", { class: "btn small", type: "button", onclick: () => openTool("get_order", { orderNumber: result.orderNumber }, true) }, "Open order →")));
+}
+
+function imageView(result) {
+  const rows = [
+    ["expected (px)", result.recommendedWidth ?? result.expectedWidth, result.recommendedHeight ?? result.expectedHeight, result.expectedAspectRatio],
+    ["actual (px)", result.actualImageWidth, result.actualImageHeight, result.actualImageAspectRatio],
+  ];
+  return h("div", {},
+    h("div", { class: "banner " + (result.ok ? "ok" : "err") }, h("strong", {}, result.ok ? "Image fits. " : "Image doesn't fit. "), result.message),
+    h("div", { class: "image-check" },
+      result.imageUrl ? h("img", { class: "thumb", src: result.imageUrl, alt: "Checked image", referrerpolicy: "no-referrer" }) : null,
+      h("div", { class: "table-wrap" }, h("table", {},
+        h("thead", {}, h("tr", {}, h("th", {}, ""), h("th", { class: "num" }, "width"), h("th", { class: "num" }, "height"), h("th", {}, "aspect"))),
+        h("tbody", {}, ...rows.map(([label, w, ht, aspect]) => h("tr", {}, h("td", {}, label), h("td", { class: "num" }, w ?? "—"), h("td", { class: "num" }, ht ?? "—"), h("td", {}, aspect ?? "—"))))))));
+}
+
+// ---------------------------------------------------------------- connect
+
+function renderConnect() {
+  const env = state.meta.config.environment;
+  const serverEnv = { LUMAPRINTS_API_KEY: "your-api-key", LUMAPRINTS_API_SECRET: "your-api-secret", LUMAPRINTS_ENV: env };
+  const mcpJson = JSON.stringify({ mcpServers: { lumaprints: { command: "npx", args: ["-y", "lumaprints", "mcp"], env: serverEnv } } }, null, 2);
+  const claudeCode = `claude mcp add lumaprints ${Object.entries(serverEnv).map(([k, v]) => `-e ${k}=${v}`).join(" ")} -- npx -y lumaprints mcp`;
+  const sdk = `import { createToolContext, tools, runTool } from "lumaprints/tools";
+
+const ctx = createToolContext(); // reads LUMAPRINTS_* from process.env
+// Each tool has name, description, and a plain JSON Schema inputSchema,
+// ready for any function-calling API or agent framework.
+const result = await runTool("search_catalog", { query: "framed black" }, ctx);`;
+
+  const snippet = (label, text) => h("div", { class: "snippet" }, h("div", { class: "label" }, label), h("pre", { class: "wrap" }, text), copyButton(() => text));
+
+  document.getElementById("main").replaceChildren(h("div", { class: "view" },
+    demoBanner(),
+    h("div", { class: "title-row" }, h("h1", {}, "Connect an agent")),
+    h("p", { class: "desc" }, "Every tool in this console is the same tool an agent gets. Use MCP for chat agents like Cursor and Claude, the CLI for shell-capable agents, or import the tool registry into your own agent."),
+    h("div", { class: "card" }, h("h2", {}, "MCP"),
+      snippet("Cursor (~/.cursor/mcp.json), Claude Desktop, and most MCP clients", mcpJson),
+      snippet("Claude Code", claudeCode),
+      snippet("No account yet? Add --demo for sample data (no keys, nothing is ordered)", "claude mcp add lumaprints-demo -- npx -y lumaprints mcp --demo")),
+    h("div", { class: "card" }, h("h2", {}, "CLI"),
+      snippet("Every tool is a subcommand. Output is JSON.", "npx lumaprints help\nnpx lumaprints search-catalog --query \"fine art paper\"\nnpx lumaprints get-product-price --subcategory-id 103001 --width 8 --height 10")),
+    h("div", { class: "card" }, h("h2", {}, "In your own agent"), snippet("TypeScript", sdk)),
+    h("div", { class: "card" }, h("h2", {}, "Instructions agents receive"),
+      h("p", { class: "help" }, "Sent as MCP server instructions on connect. Tool descriptions carry the same rules."),
+      h("pre", { class: "wrap" }, state.meta.instructions)),
+    h("div", { class: "card" }, h("h2", {}, "Environment"),
+      h("div", { class: "table-wrap" }, h("table", { class: "env-table" }, h("tbody", {},
+        ...[
+          ["LUMAPRINTS_API_KEY / LUMAPRINTS_API_SECRET", "Credentials from Developer > API Keys. Sandbox and production keys are separate."],
+          ["LUMAPRINTS_ENV", "sandbox (default) or production."],
+          ["LUMAPRINTS_STORE_ID", "Default Standard Store. Optional when the account has exactly one."],
+          ["LUMAPRINTS_ALLOW_LIVE_ORDERS", "Must be true before any agent can submit a production order."],
+        ].map(([k, v]) => h("tr", {}, h("td", {}, h("code", {}, k)), h("td", {}, v)))))))));
+}
+
+init().catch((error) => {
+  document.getElementById("main").replaceChildren(h("div", { class: "view" }, h("div", { class: "banner err" }, "Failed to load: " + error.message)));
+});
+</script>
+</body>
+</html>

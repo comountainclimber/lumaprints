@@ -1,0 +1,79 @@
+{
+  "name": "lumaprints",
+  "version": "0.1.0",
+  "description": "Unofficial, agent-first Lumaprints print-on-demand toolkit: typed SDK, MCP server, JSON CLI, and a local GUI. Zero runtime dependencies.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Maxwell Lasky <mlasky46@gmail.com>",
+  "homepage": "https://github.com/comountainclimber/lumaprints#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/comountainclimber/lumaprints.git"
+  },
+  "bugs": {
+    "url": "https://github.com/comountainclimber/lumaprints/issues"
+  },
+  "keywords": [
+    "lumaprints",
+    "print-on-demand",
+    "pod",
+    "mcp",
+    "model-context-protocol",
+    "ai-agents",
+    "agent-tools",
+    "cli",
+    "sdk"
+  ],
+  "bin": {
+    "lumaprints": "./dist/cli.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./tools": {
+      "types": "./dist/tools.d.ts",
+      "default": "./dist/tools.js"
+    },
+    "./mcp": {
+      "types": "./dist/mcp.d.ts",
+      "default": "./dist/mcp.js"
+    },
+    "./ui": {
+      "types": "./dist/ui-server.d.ts",
+      "default": "./dist/ui-server.js"
+    },
+    "./demo": {
+      "types": "./dist/demo.d.ts",
+      "default": "./dist/demo.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "ui",
+    "llms.txt",
+    "AGENTS.md"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "pnpm@11.9.0",
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json && chmod +x dist/cli.js",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test --test-reporter=spec 'test/**/*.test.ts'",
+    "dev": "node src/cli.ts",
+    "dev:ui": "node src/cli.ts ui",
+    "dev:mock": "node test/fixtures/mock-server.ts",
+    "prepublishOnly": "pnpm typecheck && pnpm test && pnpm build"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "@types/node": "^24.19.2",
+    "typescript": "^7.0.2"
+  }
+}
